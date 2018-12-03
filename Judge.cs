@@ -8,14 +8,22 @@ namespace Quoridor
 {
     static class Judge
     {
-
-        public static bool WhoWon(Player[] players)
+        public static Player[] Players { get; private set; }
+        public static void GivePlayers(Player[] players)
         {
-            //for(int i = 0; i < 2; i++)
-            //{
-            //    if ()
-            //}
-            return true;
+            Players = players;
+        }
+
+        public static int GetWalls(Player player)
+        {
+            foreach(Player p in Players)
+            {
+                if(p != player)
+                {
+                    return p.walls;
+                }
+            }
+            return 1000;
         }
     }
 }

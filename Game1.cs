@@ -50,6 +50,7 @@ namespace Quoridor
                 players[1] = new Human(new Point(4, 0), Color.Blue);
             }
             currenState = GameState.player1;
+            Judge.GivePlayers(players);
         }
 
         protected override void LoadContent()

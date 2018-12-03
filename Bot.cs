@@ -12,16 +12,17 @@ namespace Quoridor
     {
         string direction;
         List<LinkedList<Node>> paths;
-        LinkedList<Node> moves;
+        List<Node> movelist;
         Point optimalDirection;
         Point wrongDirection;
         Point left;
         Point right;
         int index;
+        int enemyWalls;
         public Bot(Point position, Color color) : base(position, color)
         {
             paths = new List<LinkedList<Node>>();
-            moves = new LinkedList<Node>();
+            movelist = new List<Node>();
             if (goalPosition == 0)
             {
                 optimalDirection = new Point(0, -1);
@@ -34,18 +35,47 @@ namespace Quoridor
             }
             left = new Point(-1, 0);
             right = new Point(1, 0);
+            enemyWalls = 100;
         }
 
         public override void ActionUpdate()
         {
-            paths.Clear();
-            moves.Clear();
-            index = 0;
-            DrawInitialPaths();
-            FindPath();
-            position = moves.First.Value.position;
-            moves.RemoveFirst();
+            if (!ConfirmPath())
+            {
+                movelist.Clear();
+                index = 0;
+                DrawInitialPaths();
+                FindPath();
+                paths.Clear();
+            }
+            position = movelist[movelist.Count-1].position;
+            movelist.RemoveAt(movelist.Count-1);
             actionTaken = true;
+        }
+
+        public bool ConfirmPath()
+        {
+            if (enemyWalls > Judge.GetWalls(this))
+            {
+                enemyWalls = Judge.GetWalls(this);
+                return false;
+            }
+            else if (movelist.Count < 1)
+            {
+                return false;
+            }
+            else
+            {
+                for (int n = 0; n < movelist.Count - 1; n++)
+                {
+                    Point tempDirection = movelist[n + 1].position - movelist[n].position;
+                    if (!Map.IsFree(movelist[n].position, tempDirection))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         public void DrawInitialPaths()
@@ -97,22 +127,6 @@ namespace Quoridor
                 {
                     x = i;
                 }
-                //for (int j = i; j < paths.Count; j++)
-                //{
-                //    if (paths[i].First.Value.weight < paths[j].First.Value.weight)
-                //    {
-                //        x = i;
-                //    }
-                //    else if (paths[i].First.Value.weight > paths[j].First.Value.weight)
-                //    {
-                //        x = j;
-                //    }
-                //}
-                //if (paths[i].First.Value.position.Y == goalPosition)
-                //{
-                //    x = i;
-                //    break;
-                //}
             }
             return x;
         }
@@ -139,6 +153,7 @@ namespace Quoridor
         public void FindPath()
         {
             int currentPath = GetLowestWeight();
+            Node toSkip = new Node(0,0,new Point());
             if (paths[currentPath].Count > 1)
             {
                 Point directionValue = paths[currentPath].First.Value.position - paths[currentPath].First.Next.Value.position;
@@ -153,7 +168,8 @@ namespace Quoridor
             {
                 if (!Map.WallBetween(paths[currentPath].First.Value.position, optimalDirection))
                 {
-                    paths[currentPath].AddFirst(new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y + optimalDirection.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X, paths[currentPath].First.Value.position.Y + optimalDirection.Y)));
+                    toSkip = new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y + optimalDirection.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X, paths[currentPath].First.Value.position.Y + optimalDirection.Y));
+                    paths[currentPath].AddFirst(toSkip);
                     firstStepAdded = true;
                 }
             }
@@ -163,7 +179,8 @@ namespace Quoridor
                 {
                     if (!firstStepAdded)
                     {
-                        paths[currentPath].AddFirst(new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X + left.X, paths[currentPath].First.Value.position.Y)));
+                        toSkip = new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X + left.X, paths[currentPath].First.Value.position.Y));
+                        paths[currentPath].AddFirst(toSkip);
                         firstStepAdded = true;
                     }
                     else
@@ -184,7 +201,8 @@ namespace Quoridor
                 {
                     if (!firstStepAdded)
                     {
-                        paths[currentPath].AddFirst(new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X + right.X, paths[currentPath].First.Value.position.Y)));
+                        toSkip = new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X + right.X, paths[currentPath].First.Value.position.Y));
+                        paths[currentPath].AddFirst(toSkip);
                         firstStepAdded = true;
                     }
                     else
@@ -205,7 +223,8 @@ namespace Quoridor
                 {
                     if (!firstStepAdded)
                     {
-                        paths[currentPath].AddFirst(new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y + wrongDirection.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X, paths[currentPath].First.Value.position.Y + wrongDirection.Y)));
+                        toSkip = new Node(paths[currentPath].First.Value.stepsFromStart + 1, Math.Abs(paths[currentPath].First.Value.position.Y + wrongDirection.Y - goalPosition), new Point(paths[currentPath].First.Value.position.X, paths[currentPath].First.Value.position.Y + wrongDirection.Y));
+                        paths[currentPath].AddFirst(toSkip);
                         firstStepAdded = true;
                     }
                     else
@@ -224,7 +243,10 @@ namespace Quoridor
             {
                 foreach (Node n in paths[currentPath])
                 {
-                    moves.AddFirst(n);
+                    if (n != toSkip)
+                    {
+                        movelist.Add(n);
+                    }
                 }
             }
             else
